@@ -1,0 +1,53 @@
+@startuml
+actor Client
+
+participant "API Gateway" as APIGW
+participant "Eureka Server" as EUREKA
+participant "Config Server" as CONFIG
+participant "Account Controller" as CTRL
+participant "Account Service (RxJava)" as SVC
+participant "Account Repository (Reactive MongoDB)" as REPO
+database "MongoDB (account-db)" as DB
+
+== REQUEST FLOW ==
+
+Client -> APIGW: POST /api/accounts (JSON)
+
+APIGW -> EUREKA: Discover ACCOUNT-SERVICE
+EUREKA --> APIGW: Instance (host:port)
+
+APIGW -> CONFIG: Fetch configuration (account-service.yml)
+CONFIG --> APIGW: Properties (port, db, logs)
+
+APIGW -> CTRL: Forward HTTP request
+
+CTRL -> SVC: createAccount(account)
+
+== REACTIVE FLOW (RxJava) ==
+
+SVC -> REPO: save(account)
+REPO -> DB: insert document
+DB --> REPO: saved document
+
+REPO --> SVC: Single<Account>
+SVC --> CTRL: Single<Account>
+
+CTRL --> APIGW: HTTP 201 CREATED + JSON
+APIGW --> Client: Response
+
+== OPTIONAL READ FLOW ==
+
+Client -> APIGW: GET /api/accounts/{id}
+APIGW -> EUREKA: Resolve ACCOUNT-SERVICE
+EUREKA --> APIGW: Instance
+
+APIGW -> CTRL: forward request
+CTRL -> SVC: findById(id)
+SVC -> REPO: findById(id)
+REPO --> SVC: Maybe<Account>
+
+SVC --> CTRL: Maybe<Account>
+CTRL --> APIGW: HTTP 200 OK
+APIGW --> Client: JSON response
+
+@enduml
