@@ -1,18 +1,19 @@
 package com.banking.accountservice.service;
 
 import com.banking.accountservice.model.Account;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.Single;
 
 public interface AccountService {
 
-    Mono<Account> create(Account account);
+    Single<Account> create(Account account);
 
-    Flux<Account> findAll();
+    Observable<Account> findAll();
 
-    Mono<Account> findById(String id);
+    Single<Account> findById(String id);
 
-    Mono<Account> update(String id, Account account);
+    Single<Account> update(String id, Account account);
 
-    Mono<Void> delete(String id);
+    Completable delete(String id);
 }

@@ -3,47 +3,97 @@ package com.banking.accountservice.service.impl;
 import com.banking.accountservice.model.Account;
 import com.banking.accountservice.repository.AccountRepository;
 import com.banking.accountservice.service.AccountService;
+import io.reactivex.rxjava3.core.*;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import com.banking.accountservice.client.CustomerClient;
+import com.banking.accountservice.client.TransactionClient;
+import com.banking.accountservice.dto.TransactionDTO;
+import com.banking.accountservice.dto.CustomerDTO;
 
 @Service
 public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository repository;
+    private final CustomerClient customerClient;
+    private final TransactionClient transactionClient;
 
-    public AccountServiceImpl(AccountRepository repository) {
+    public AccountServiceImpl(AccountRepository repository,
+                              CustomerClient customerClient,
+                              TransactionClient transactionClient) {
         this.repository = repository;
+        this.customerClient = customerClient;
+        this.transactionClient = transactionClient;
+    }
+
+    /*@Override
+    public Single<Account> create(Account account) {
+        return Single.fromPublisher(repository.save(account));
+    }*/
+    @Override
+    public Single<Account> create(Account account) {
+
+        return Single.fromPublisher(repository.save(account))
+                .flatMap(savedAccount ->
+
+                        customerClient.getCustomer(savedAccount.getCustomerId())
+                                .flatMap(customer -> {
+
+                                    // 🟡 REGLA VIP
+                                    if ("VIP".equals(customer.getCustomerType())
+                                            && "SAVINGS".equals(savedAccount.getType())) {
+
+                                        return transactionClient
+                                                .getTransactions(savedAccount.getId())
+                                                .flatMap(transactions -> {
+
+                                                    double promedio = transactions.stream()
+                                                            .mapToDouble(TransactionDTO::getBalanceAfter)
+                                                            .average()
+                                                            .orElse(0);
+
+                                                    if (promedio < 1000) {
+                                                        return Single.error(
+                                                                new RuntimeException(
+                                                                        "VIP debe mantener promedio diario mínimo de 1000"
+                                                                )
+                                                        );
+                                                    }
+
+                                                    return Single.just(savedAccount);
+                                                });
+                                    }
+
+                                    return Single.just(savedAccount);
+                                })
+                );
     }
 
     @Override
-    public Mono<Account> create(Account account) {
-        return repository.save(account);
+    public Observable<Account> findAll() {
+        return Observable.fromPublisher(repository.findAll());
     }
 
     @Override
-    public Flux<Account> findAll() {
-        return repository.findAll();
+    public Single<Account> findById(String id) {
+        return Single.fromPublisher(repository.findById(id));
     }
 
     @Override
-    public Mono<Account> findById(String id) {
-        return repository.findById(id);
-    }
+    public Single<Account> update(String id, Account account) {
 
-    @Override
-    public Mono<Account> update(String id, Account account) {
-        return repository.findById(id)
+        return Single.fromPublisher(repository.findById(id))
                 .flatMap(existing -> {
+
                     existing.setCustomerId(account.getCustomerId());
                     existing.setType(account.getType());
                     existing.setBalance(account.getBalance());
-                    return repository.save(existing);
+
+                    return Single.fromPublisher(repository.save(existing));
                 });
     }
 
     @Override
-    public Mono<Void> delete(String id) {
-        return repository.deleteById(id);
+    public Completable delete(String id) {
+        return Completable.fromPublisher(repository.deleteById(id));
     }
 }
