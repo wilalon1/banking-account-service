@@ -15,7 +15,15 @@ spring:
     mongodb:
       uri: mongodb://localhost:27017/account-db
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,circuitbreakers,circuitbreakerevents
 
+  endpoint:
+    health:
+      show-details: always
 
 eureka:
 
@@ -26,3 +34,26 @@ eureka:
 
   instance:
     prefer-ip-address: true
+
+resilience4j:
+
+  circuitbreaker:
+
+    instances:
+
+      customerService:
+
+        slidingWindowSize: 5
+
+        minimumNumberOfCalls: 3
+
+        failureRateThreshold: 50
+
+
+  timelimiter:
+
+    instances:
+
+      customerService:
+
+        timeoutDuration: 2s

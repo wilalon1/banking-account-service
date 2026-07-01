@@ -3,12 +3,15 @@ package com.banking.accountservice.service.impl;
 import com.banking.accountservice.model.Account;
 import com.banking.accountservice.repository.AccountRepository;
 import com.banking.accountservice.service.AccountService;
-import io.reactivex.rxjava3.core.*;
-import org.springframework.stereotype.Service;
 import com.banking.accountservice.client.CustomerClient;
 import com.banking.accountservice.client.TransactionClient;
 import com.banking.accountservice.dto.TransactionDTO;
-import com.banking.accountservice.dto.CustomerDTO;
+
+import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.Completable;
+
+import org.springframework.stereotype.Service;
 
 @Service
 public class AccountServiceImpl implements AccountService {
@@ -25,10 +28,6 @@ public class AccountServiceImpl implements AccountService {
         this.transactionClient = transactionClient;
     }
 
-    /*@Override
-    public Single<Account> create(Account account) {
-        return Single.fromPublisher(repository.save(account));
-    }*/
     @Override
     public Single<Account> create(Account account) {
 
@@ -38,7 +37,7 @@ public class AccountServiceImpl implements AccountService {
                         customerClient.getCustomer(savedAccount.getCustomerId())
                                 .flatMap(customer -> {
 
-                                    // 🟡 REGLA VIP
+                                    // 🟡 RULE VIP
                                     if ("VIP".equals(customer.getCustomerType())
                                             && "SAVINGS".equals(savedAccount.getType())) {
 
@@ -54,7 +53,7 @@ public class AccountServiceImpl implements AccountService {
                                                     if (promedio < 1000) {
                                                         return Single.error(
                                                                 new RuntimeException(
-                                                                        "VIP debe mantener promedio diario mínimo de 1000"
+                                                                        "VIP must maintain a minimum daily average of 1000"
                                                                 )
                                                         );
                                                     }

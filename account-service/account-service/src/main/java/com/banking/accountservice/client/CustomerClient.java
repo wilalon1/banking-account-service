@@ -1,6 +1,7 @@
 package com.banking.accountservice.client;
 
 import com.banking.accountservice.dto.CustomerDTO;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.reactivex.rxjava3.core.Single;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -12,13 +13,24 @@ public class CustomerClient {
 
     private final WebClient webClient;
 
-    public Single<CustomerDTO> getCustomer(String customerId) {
+    @CircuitBreaker(name = "customerService",
+            fallbackMethod = "fallbackCustomer")
+    public Single<CustomerDTO> getCustomer(String id) {
 
         return Single.fromPublisher(
                 webClient.get()
-                        .uri("http://CUSTOMER-SERVICE/api/customers/{id}", customerId)
+                        .uri("http://customer-service/api/customers/{id}", id)
                         .retrieve()
                         .bodyToMono(CustomerDTO.class)
+        );
+    }
+
+    public Single<CustomerDTO> fallbackCustomer(String id, Throwable ex) {
+
+        System.out.println("Circuit Breaker activado: " + ex.getMessage());
+
+        return Single.error(
+                new RuntimeException("Customer Service no disponible")
         );
     }
 }
