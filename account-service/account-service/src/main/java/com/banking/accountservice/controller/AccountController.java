@@ -36,6 +36,7 @@ public class AccountController {
 
     @GetMapping("/{id}")
     public Single<Account> findById(@PathVariable String id) {
+
         return service.findById(id);
     }
 
