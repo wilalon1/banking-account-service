@@ -1,17 +1,18 @@
 package com.banking.accountservice.service.impl;
 
-import com.banking.accountservice.model.Account;
-import com.banking.accountservice.repository.AccountRepository;
-import com.banking.accountservice.service.AccountService;
 import com.banking.accountservice.client.CustomerClient;
 import com.banking.accountservice.client.TransactionClient;
 import com.banking.accountservice.dto.TransactionDTO;
+import com.banking.accountservice.model.Account;
+import com.banking.accountservice.repository.AccountRepository;
+import com.banking.accountservice.service.AccountService;
 
-import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.core.Single;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -29,6 +30,7 @@ public class AccountServiceImpl implements AccountService {
     private final CustomerClient customerClient;
     private final TransactionClient transactionClient;
 
+    private final ReactiveRedisTemplate<String, Object> redis;
 
 
     @Override
@@ -78,7 +80,6 @@ public class AccountServiceImpl implements AccountService {
     }
 
 
-
     @Override
     public Single<List<Account>> findAll() {
 
@@ -89,7 +90,6 @@ public class AccountServiceImpl implements AccountService {
     }
 
 
-
     @Override
     public Single<Account> findById(String id) {
 
@@ -97,7 +97,6 @@ public class AccountServiceImpl implements AccountService {
                 repository.findById(id)
         );
     }
-
 
 
     @Override
@@ -130,7 +129,6 @@ public class AccountServiceImpl implements AccountService {
     }
 
 
-
     @Override
     public Completable delete(String id) {
 
@@ -138,7 +136,6 @@ public class AccountServiceImpl implements AccountService {
                 repository.deleteById(id)
         );
     }
-
 
 
     @Override
@@ -163,12 +160,33 @@ public class AccountServiceImpl implements AccountService {
     }
 
 
-
     private int getFreeTransactionsForAccount(String accountId) {
 
         return 3;
     }
 
 
+    @Override
+    public Single<Boolean> saveAllToRedis(List<Account> accounts) {
+
+        return Single.fromPublisher(
+                redis.opsForValue()
+                        .set(
+                                "accounts",
+                                accounts
+                        )
+        );
+    }
+
+
+    @Override
+    public Single<List<Account>> findAllFromRedis() {
+
+        return Single.fromPublisher(
+                        redis.opsForValue()
+                                .get("accounts")
+                )
+                .map(data -> (List<Account>) data);
+    }
 
 }

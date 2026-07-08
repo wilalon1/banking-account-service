@@ -21,5 +21,8 @@ public interface AccountService {
     Completable delete(String id);
     double calculateCommission(String accountId, List<TransactionDTO> txs);
 
+    Single<List<Account>> findAllFromRedis();
 
+
+    Single<Boolean> saveAllToRedis(List<Account> accounts);
 }
