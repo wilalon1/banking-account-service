@@ -25,7 +25,7 @@ public class YankiWalletServiceImpl implements YankiWalletService {
         return RxJava3Adapter.monoToSingle(walletRepository.findByPhoneNumber(fromPhone))
                 .flatMap(from -> {
                     if (from.getBalance().compareTo(amount) < 0) {
-                        return Single.error(new RuntimeException("Saldo insuficiente"));
+                        return Single.error(new RuntimeException("Insufficient balance"));
                     }
 
                     from.setBalance(from.getBalance().subtract(amount));
@@ -36,7 +36,7 @@ public class YankiWalletServiceImpl implements YankiWalletService {
 
                                 return RxJava3Adapter.monoToSingle(walletRepository.save(from))
                                         .flatMap(f -> RxJava3Adapter.monoToSingle(walletRepository.save(to)))
-                                        .map(x -> "Transferencia realizada correctamente.");
+                                        .map(x -> "Transfer completed successfully.");
                             });
                 });
     }

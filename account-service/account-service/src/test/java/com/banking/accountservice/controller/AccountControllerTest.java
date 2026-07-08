@@ -108,15 +108,32 @@ class AccountControllerTest {
                 .balance(500.0)
                 .build();
 
+
+        List<Account> accounts = List.of(account);
+
+
         Mockito.when(accountService.findAll())
-                .thenReturn(Observable.just(account));
+                .thenReturn(Single.just(accounts));
+
 
         client.get()
                 .uri("/api/accounts")
                 .exchange()
-                .expectStatus().isOk()
+                .expectStatus()
+                .isOk()
                 .expectBody()
-                .jsonPath("$[0].id").isEqualTo("1");
+                .jsonPath("$[0].id")
+                .isEqualTo("1")
+                .jsonPath("$[0].customerId")
+                .isEqualTo("C1")
+                .jsonPath("$[0].type")
+                .isEqualTo("CURRENT")
+                .jsonPath("$[0].balance")
+                .isEqualTo(500.0);
+
+
+        Mockito.verify(accountService)
+                .findAll();
     }
 
     @Test

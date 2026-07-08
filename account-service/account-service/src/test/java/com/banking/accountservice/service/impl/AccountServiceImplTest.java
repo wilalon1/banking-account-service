@@ -10,49 +10,42 @@ import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.observers.TestObserver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
-
 
 class AccountServiceImplTest {
 
     @Mock
     private AccountRepository repository;
+
     @Mock
     private CustomerClient customerClient;
+
     @Mock
     private TransactionClient transactionClient;
-    @Mock
+
     private AccountServiceImpl service;
-
-
-    @Mock
-    private AccountRepository accountRepository;
-
-
-    @InjectMocks
-    private AccountServiceImpl accountService;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
-        repository = mock(AccountRepository.class);
-        customerClient = mock(CustomerClient.class);
-        transactionClient = mock(TransactionClient.class);
 
-        service = new AccountServiceImpl(repository, customerClient, transactionClient);
+        MockitoAnnotations.openMocks(this);
+
+        service = new AccountServiceImpl(
+                repository,
+                customerClient,
+                transactionClient
+        );
     }
 
     // =========================
@@ -67,7 +60,7 @@ class AccountServiceImplTest {
                 .thenReturn(Mono.just(account));
 
         when(customerClient.getCustomer(anyString()))
-                .thenReturn(io.reactivex.rxjava3.core.Single.just(
+                .thenReturn(Single.just(
                         new CustomerDTO("C1", "NORMAL")
                 ));
 
@@ -89,7 +82,7 @@ class AccountServiceImplTest {
                 .thenReturn(Mono.just(account));
 
         when(customerClient.getCustomer(anyString()))
-                .thenReturn(io.reactivex.rxjava3.core.Single.just(
+                .thenReturn(Single.just(
                         new CustomerDTO("VIP1", "VIP")
                 ));
 
@@ -100,7 +93,7 @@ class AccountServiceImplTest {
         t2.setBalanceAfter(1500.0);
 
         when(transactionClient.getTransactions(anyString()))
-                .thenReturn(io.reactivex.rxjava3.core.Single.just(List.of(t1, t2)));
+                .thenReturn(Single.just(List.of(t1, t2)));
 
         service.create(account)
                 .test()
@@ -120,7 +113,7 @@ class AccountServiceImplTest {
                 .thenReturn(Mono.just(account));
 
         when(customerClient.getCustomer(anyString()))
-                .thenReturn(io.reactivex.rxjava3.core.Single.just(
+                .thenReturn(Single.just(
                         new CustomerDTO("VIP2", "VIP")
                 ));
 
@@ -131,7 +124,7 @@ class AccountServiceImplTest {
         t2.setBalanceAfter(300.0);
 
         when(transactionClient.getTransactions(anyString()))
-                .thenReturn(io.reactivex.rxjava3.core.Single.just(List.of(t1, t2)));
+                .thenReturn(Single.just(List.of(t1, t2)));
 
         service.create(account)
                 .test()
@@ -153,8 +146,13 @@ class AccountServiceImplTest {
 
         service.findAll()
                 .test()
-                .assertValueCount(1)
-                .assertComplete();
+                .assertComplete()
+                .assertValue(accounts ->
+                        accounts.size() == 1 &&
+                                accounts.get(0).getId().equals("1")
+                );
+
+        verify(repository, times(1)).findAll();
     }
 
     // =========================
@@ -199,6 +197,7 @@ class AccountServiceImplTest {
 
         verify(repository, times(1)).save(any(Account.class));
     }
+
     @Test
     void testCreateVIPAccountWithLowAverageShouldFail() {
 

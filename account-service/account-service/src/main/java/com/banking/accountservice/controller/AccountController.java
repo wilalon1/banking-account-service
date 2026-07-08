@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/accounts")
 public class AccountController {
@@ -30,7 +32,7 @@ public class AccountController {
     }
 
     @GetMapping
-    public Observable<Account> findAll() {
+    public Single<List<Account>> findAll() {
         return service.findAll();
     }
 

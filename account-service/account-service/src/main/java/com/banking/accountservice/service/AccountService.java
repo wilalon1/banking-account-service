@@ -12,7 +12,7 @@ public interface AccountService {
 
     Single<Account> create(Account account);
 
-    Observable<Account> findAll();
+    Single<List<Account>> findAll();
 
     Single<Account> findById(String id);
 
@@ -20,4 +20,6 @@ public interface AccountService {
 
     Completable delete(String id);
     double calculateCommission(String accountId, List<TransactionDTO> txs);
+
+
 }
