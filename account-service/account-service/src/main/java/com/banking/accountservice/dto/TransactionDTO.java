@@ -13,4 +13,6 @@ public class TransactionDTO {
     private Double amount;
     private Double balanceAfter;
     private LocalDateTime date;
+
+
 }

@@ -6,28 +6,48 @@ import com.banking.accountservice.dto.CustomerDTO;
 import com.banking.accountservice.dto.TransactionDTO;
 import com.banking.accountservice.model.Account;
 import com.banking.accountservice.repository.AccountRepository;
+import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.observers.TestObserver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+
 class AccountServiceImplTest {
 
+    @Mock
     private AccountRepository repository;
+    @Mock
     private CustomerClient customerClient;
+    @Mock
     private TransactionClient transactionClient;
-
+    @Mock
     private AccountServiceImpl service;
+
+
+    @Mock
+    private AccountRepository accountRepository;
+
+
+    @InjectMocks
+    private AccountServiceImpl accountService;
 
     @BeforeEach
     void setUp() {
+        MockitoAnnotations.openMocks(this);
         repository = mock(AccountRepository.class);
         customerClient = mock(CustomerClient.class);
         transactionClient = mock(TransactionClient.class);
@@ -152,5 +172,71 @@ class AccountServiceImplTest {
                 .test()
                 .assertValue(a -> a.getId().equals("99"))
                 .assertComplete();
+    }
+
+    @Test
+    void testCreateAccountWithMinimumAmount() {
+
+        Account account = Account.builder()
+                .customerId("CUST001")
+                .type("SAVINGS")
+                .balance(0.0)
+                .build();
+
+        CustomerDTO customer = new CustomerDTO();
+        customer.setCustomerType("STANDARD");
+
+        when(repository.save(any(Account.class)))
+                .thenReturn(Mono.just(account));
+
+        when(customerClient.getCustomer(anyString()))
+                .thenReturn(Single.just(customer));
+
+        Account created = service.create(account).blockingGet();
+
+        assertEquals("SAVINGS", created.getType());
+        assertEquals(0.0, created.getBalance());
+
+        verify(repository, times(1)).save(any(Account.class));
+    }
+    @Test
+    void testCreateVIPAccountWithLowAverageShouldFail() {
+
+        Account account = Account.builder()
+                .id("ACC1")
+                .customerId("CUSTVIP")
+                .type("SAVINGS")
+                .balance(500.0)
+                .build();
+
+        when(repository.save(any(Account.class)))
+                .thenReturn(Mono.just(account));
+
+        CustomerDTO customer = new CustomerDTO();
+        customer.setCustomerType("VIP");
+
+        when(customerClient.getCustomer(anyString()))
+                .thenReturn(Single.just(customer));
+
+        TransactionDTO transaction = new TransactionDTO();
+        transaction.setId("TX1");
+        transaction.setAccountId("ACC1");
+        transaction.setBalanceAfter(450.0);
+        transaction.setType("DEPOSIT");
+
+        when(transactionClient.getTransactions(anyString()))
+                .thenReturn(Single.just(List.of(transaction)));
+
+        RuntimeException ex = assertThrows(
+                RuntimeException.class,
+                () -> service.create(account).blockingGet()
+        );
+
+        assertEquals(
+                "VIP must maintain a minimum daily average of 1000",
+                ex.getMessage()
+        );
+
+        verify(repository).save(any(Account.class));
     }
 }
