@@ -12,7 +12,15 @@ import org.springframework.stereotype.Service;
 import reactor.adapter.rxjava.RxJava3Adapter;
 
 import java.util.UUID;
-
+/**
+ * Implementation of the DebitCardService interface.
+ *
+ * This service manages debit card operations including card creation,
+ * payment processing, and customer card retrieval.
+ *
+ * It also validates card status and available account balance before
+ * processing debit card payments.
+ */
 @Service
 @RequiredArgsConstructor
 public class DebitCardServiceImpl implements DebitCardService {
@@ -20,6 +28,16 @@ public class DebitCardServiceImpl implements DebitCardService {
     private final DebitCardRepository debitCardRepository;
     private final AccountRepository accountRepository;
 
+    /**
+     * Creates a new debit card associated with an account.
+     *
+     * A unique card number is generated automatically and the card
+     * is created with ACTIVE status.
+     *
+     * @param customerId customer identifier
+     * @param accountId linked account identifier
+     * @return created debit card wrapped in a reactive Single response
+     */
     @Override
     public Single<DebitCard> createDebitCard(String customerId, String accountId) {
         String cardNumber = UUID.randomUUID().toString().replaceAll("-", "").substring(0, 16);
@@ -36,6 +54,20 @@ public class DebitCardServiceImpl implements DebitCardService {
         return RxJava3Adapter.monoToSingle(debitCardRepository.save(card));
     }
 
+    /**
+     * Processes a payment using a debit card.
+     *
+     * The method validates that:
+     * - The card is active.
+     * - The linked account has sufficient balance.
+     *
+     * If both validations succeed, the payment amount is deducted
+     * from the account balance.
+     *
+     * @param cardNumber debit card number
+     * @param amount payment amount
+     * @return success message wrapped in a reactive Single response
+     */
     @Override
     public Single<String> payWithDebitCard(String cardNumber, Double amount) {
         return RxJava3Adapter.monoToSingle(debitCardRepository.findByCardNumber(cardNumber))
@@ -54,7 +86,12 @@ public class DebitCardServiceImpl implements DebitCardService {
                             });
                 });
     }
-
+    /**
+     * Retrieves all debit cards associated with a customer.
+     *
+     * @param customerId customer identifier
+     * @return stream of debit cards using a reactive Flowable
+     */
     @Override
     public Flowable<DebitCard> findCardsByCustomer(String customerId) {
         return RxJava3Adapter.fluxToFlowable(debitCardRepository.findByCustomerId(customerId));

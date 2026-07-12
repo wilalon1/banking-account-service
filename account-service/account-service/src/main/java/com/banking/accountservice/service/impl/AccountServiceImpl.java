@@ -17,7 +17,16 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-
+/**
+ * Implementation of the AccountService interface.
+ *
+ * This service contains the business logic for account management operations,
+ * including account creation, retrieval, update, deletion, transaction
+ * commission calculation, and Redis cache operations.
+ *
+ * It communicates with Customer Service and Transaction Service to validate
+ * business rules related to account creation.
+ */
 @Service
 @RequiredArgsConstructor
 public class AccountServiceImpl implements AccountService {
@@ -32,54 +41,70 @@ public class AccountServiceImpl implements AccountService {
 
     private final ReactiveRedisTemplate<String, Object> redis;
 
-
+    /**
+     * Creates a new account.
+     *
+     * For VIP customers with savings accounts, this method validates that
+     * the account maintains a minimum daily average balance of 1000.
+     *
+     * @param account account information to be created
+     * @return created account wrapped in a reactive Single response
+     */
     @Override
     public Single<Account> create(Account account) {
 
-        return Single.fromPublisher(repository.save(account))
-                .flatMap(savedAccount ->
+        return customerClient.getCustomer(account.getCustomerId())
+                .flatMap(customer -> {
 
-                        customerClient.getCustomer(savedAccount.getCustomerId())
-                                .flatMap(customer -> {
-
-                                    if ("VIP".equals(customer.getCustomerType())
-                                            && "SAVINGS".equals(savedAccount.getType())) {
+                    // Validate VIP customer rules
+                    if ("VIP".equals(customer.getCustomerType())
+                            && "SAVINGS".equals(account.getType())) {
 
 
-                                        return transactionClient
-                                                .getTransactions(savedAccount.getId())
-                                                .flatMap(transactions -> {
+                        return transactionClient
+                                .getTransactions(account.getId())
+                                .flatMap(transactions -> {
 
 
-                                                    double promedio =
-                                                            transactions.stream()
-                                                                    .mapToDouble(TransactionDTO::getBalanceAfter)
-                                                                    .average()
-                                                                    .orElse(0);
+                                    double averageBalance =
+                                            transactions.stream()
+                                                    .mapToDouble(TransactionDTO::getBalanceAfter)
+                                                    .average()
+                                                    .orElse(0);
 
 
-                                                    if (promedio < 1000) {
+                                    // VIP customers must maintain minimum balance
+                                    if (averageBalance < 1000) {
 
-                                                        return Single.error(
-                                                                new RuntimeException(
-                                                                        "VIP must maintain a minimum daily average of 1000"
-                                                                )
-                                                        );
-                                                    }
-
-
-                                                    return Single.just(savedAccount);
-                                                });
+                                        return Single.error(
+                                                new RuntimeException(
+                                                        "VIP must maintain a minimum daily average of 1000"
+                                                )
+                                        );
                                     }
 
 
-                                    return Single.just(savedAccount);
+                                    return Single.fromPublisher(
+                                            repository.save(account)
+                                    );
+                                });
 
-                                })
-                );
+                    }
+
+
+                    // Save account for non VIP customers
+                    return Single.fromPublisher(
+                            repository.save(account)
+                    );
+
+                });
     }
 
-
+    /**
+     * Retrieves all accounts registered in the system.
+     *
+     * @return list of accounts wrapped in a reactive Single response
+     */
     @Override
     public Single<List<Account>> findAll() {
 
@@ -89,7 +114,12 @@ public class AccountServiceImpl implements AccountService {
         );
     }
 
-
+    /**
+     * Retrieves an account by its identifier.
+     *
+     * @param id account identifier
+     * @return account information wrapped in a reactive Single response
+     */
     @Override
     public Single<Account> findById(String id) {
 
@@ -98,7 +128,15 @@ public class AccountServiceImpl implements AccountService {
         );
     }
 
-
+    /**
+     * Updates an existing account.
+     *
+     * The account information is updated using the provided identifier.
+     *
+     * @param id account identifier to update
+     * @param account account information with updated values
+     * @return updated account wrapped in a reactive Single response
+     */
     @Override
     public Single<Account> update(String id, Account account) {
 
@@ -128,7 +166,12 @@ public class AccountServiceImpl implements AccountService {
                 });
     }
 
-
+    /**
+     * Deletes an account by identifier.
+     *
+     * @param id account identifier to delete
+     * @return completion signal using reactive Completable
+     */
     @Override
     public Completable delete(String id) {
 
@@ -137,7 +180,16 @@ public class AccountServiceImpl implements AccountService {
         );
     }
 
-
+    /**
+     * Calculates the commission amount for account transactions.
+     *
+     * The calculation applies a commission only when the number of transactions
+     * exceeds the allowed free transaction limit.
+     *
+     * @param accountId account identifier
+     * @param txs list of transactions to evaluate
+     * @return calculated commission value
+     */
     @Override
     public double calculateCommission(
             String accountId,
@@ -159,13 +211,23 @@ public class AccountServiceImpl implements AccountService {
         return extra * COMMISSION_VALUE;
     }
 
-
+    /**
+     * Retrieves the number of free transactions allowed for an account.
+     *
+     * @param accountId account identifier
+     * @return number of free transactions allowed
+     */
     private int getFreeTransactionsForAccount(String accountId) {
 
         return 3;
     }
 
-
+    /**
+     * Stores accounts information in Redis cache.
+     *
+     * @param accounts list of accounts to store
+     * @return operation result wrapped in a reactive Single response
+     */
     @Override
     public Single<Boolean> saveAllToRedis(List<Account> accounts) {
 
@@ -178,7 +240,11 @@ public class AccountServiceImpl implements AccountService {
         );
     }
 
-
+    /**
+     * Retrieves accounts information from Redis cache.
+     *
+     * @return cached accounts list wrapped in a reactive Single response
+     */
     @Override
     public Single<List<Account>> findAllFromRedis() {
 
